@@ -325,7 +325,7 @@ async function handleDtekAddressInput(bot, msg) {
     if (region.hasSettlement) {
       // Для обласних регіонів: "населений_пункт, вулиця, номер_будинку"
       // Підтримувані формати номерів: 10, 10А, 10-А, 5/7, 10а/2
-      const addressMatch = text.match(/^([^,]+),\s*([^,]+),\s*([\d]+[а-яіїєґА-ЯІЇЄҐA-Za-z\d\-\/]*)$/i);
+      const addressMatch = text.match(/^([^,]+),\s*([^,]+),\s*([а-яіїєґА-ЯІЇЄҐA-Za-z\d\-\/]+)$/i);
 
       if (!addressMatch) {
         await safeSendMessage(bot, chatId, 
@@ -343,7 +343,7 @@ async function handleDtekAddressInput(bot, msg) {
       house = addressMatch[3].trim();
     } else {
       // Для міських регіонів: "вулиця номер"
-      const addressMatch = text.match(/^(.+)\s+([\d]+[а-яіїєґА-ЯІЇЄҐA-Za-z\d\-\/]*)$/i);
+      const addressMatch = text.match(/^(.+)\s+([а-яіїєґА-ЯІЇЄҐA-Za-z\d\-\/]+)$/i);
 
       if (!addressMatch) {
         await safeSendMessage(bot, chatId, 
