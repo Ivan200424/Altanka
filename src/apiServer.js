@@ -1,4 +1,5 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const config = require('./config');
 const { createLogger } = require('./utils/logger');
 const { 
@@ -24,6 +25,21 @@ function createApiServer() {
 
   // Middleware для парсингу JSON
   app.use(express.json());
+
+  // Rate limiting - 100 requests per 15 minutes per IP
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: {
+      error: 'Too Many Requests',
+      message: 'Too many requests from this IP, please try again later.'
+    },
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  });
+
+  // Apply rate limiter to all routes
+  app.use(limiter);
 
   // Middleware для логування запитів
   app.use((req, res, next) => {

@@ -592,7 +592,7 @@ async function checkPoolHealth() {
 let poolMetricsInterval = null;
 
 function startPoolMetricsLogging() {
-  const { POOL_STATS_LOG_INTERVAL_MS } = require('../constants/timeouts');
+  const POOL_STATS_LOG_INTERVAL_MS = 60000; // 60 seconds
   
   if (poolMetricsInterval) {
     return; // Already running
