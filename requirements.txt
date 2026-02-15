@@ -10,5 +10,5 @@ pydantic-settings==2.1.0
 python-dotenv==1.0.0
 
 # Additional dependencies
-aiohttp==3.9.1
+aiohttp==3.13.3  # Updated to fix security vulnerabilities (CVE-2024-52304, CVE-2024-23334, CVE-2024-23829)
 tenacity==8.2.3
