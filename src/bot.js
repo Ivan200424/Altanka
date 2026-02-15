@@ -22,7 +22,6 @@ const {
 } = require('./handlers/admin');
 const { 
   handleChannel, 
-  handleSetChannel, 
   handleConversation, 
   handleChannelCallback, 
   handleCancelChannel 
@@ -152,7 +151,7 @@ bot.on('message', async (msg) => {
     const knownCommands = [
       '/start', '/schedule', '/next', '/timer', '/settings', 
       '/channel', '/cancel', '/admin', '/stats', '/system',
-      '/monitoring', '/setalertchannel',
+      '/dtek', '/monitoring', '/setalertchannel',
       '/broadcast', '/setinterval', '/setdebounce', '/getdebounce'
     ];
     
@@ -262,7 +261,8 @@ bot.on('callback_query', async (query) => {
         data === 'wizard_notify_bot' ||
         data === 'wizard_notify_channel' ||
         data === 'wizard_notify_back' ||
-        data.startsWith('wizard_channel_confirm_')) {
+        data.startsWith('wizard_channel_confirm_') ||
+        data === 'wizard_channel_cancel') {
       await handleWizardCallback(bot, query);
       return;
     }
@@ -290,8 +290,8 @@ bot.on('callback_query', async (query) => {
         await bot.answerCallbackQuery(query.id).catch(() => {});
         
         // Get schedule data
-        const data = await fetchScheduleData(user.region);
-        const scheduleData = parseScheduleForQueue(data, user.queue);
+        const scheduleRawData = await fetchScheduleData(user.region);
+        const scheduleData = parseScheduleForQueue(scheduleRawData, user.queue);
         const nextEvent = findNextEvent(scheduleData);
         
         // Check if data exists
@@ -390,8 +390,8 @@ bot.on('callback_query', async (query) => {
           return;
         }
         
-        const data = await fetchScheduleData(user.region);
-        const scheduleData = parseScheduleForQueue(data, user.queue);
+        const scheduleRawData = await fetchScheduleData(user.region);
+        const scheduleData = parseScheduleForQueue(scheduleRawData, user.queue);
         const nextEvent = findNextEvent(scheduleData);
         
         const message = formatTimerMessage(nextEvent);
