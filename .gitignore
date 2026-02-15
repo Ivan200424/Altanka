@@ -157,3 +157,6 @@ COMPLETION_SUMMARY_TEXT_FIXES.md
 test-critical-fixes.js
 .env
 test-admin-notifier.js
+
+# Old backup files
+src/index.old.js
