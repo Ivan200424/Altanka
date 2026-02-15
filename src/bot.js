@@ -29,6 +29,7 @@ const {
 } = require('./handlers/channel');
 const { handleFeedbackCallback, handleFeedbackMessage } = require('./handlers/feedback');
 const { handleRegionRequestCallback, handleRegionRequestMessage } = require('./handlers/regionRequest');
+const { handleDtek, handleDtekCallback, handleDtekAddressInput, isInDtekWizard } = require('./handlers/dtek');
 const { getMainMenu, getHelpKeyboard, getStatisticsKeyboard, getSettingsKeyboard, getErrorKeyboard } = require('./keyboards/inline');
 const { REGIONS } = require('./constants/regions');
 const { formatErrorMessage } = require('./formatter');
@@ -132,6 +133,7 @@ bot.onText(/^\/cancel$/, (msg) => handleCancelChannel(bot, msg));
 bot.onText(/^\/admin$/, (msg) => handleAdmin(bot, msg));
 bot.onText(/^\/stats$/, (msg) => handleStats(bot, msg));
 bot.onText(/^\/system$/, (msg) => handleSystem(bot, msg));
+bot.onText(/^\/dtek$/, (msg) => handleDtek(bot, msg));
 bot.onText(/^\/monitoring$/, (msg) => handleMonitoring(bot, msg));
 bot.onText(/^\/setalertchannel (.+)/, (msg, match) => handleSetAlertChannel(bot, msg, match));
 bot.onText(/^\/broadcast (.+)/, (msg, match) => handleBroadcast(bot, msg, match));
@@ -201,6 +203,10 @@ bot.on('message', async (msg) => {
     const adminRouterIpHandled = await handleAdminRouterIpConversation(bot, msg);
     if (adminRouterIpHandled) return;
     
+    // Handle DTEK address input (handles text only)
+    const dtekHandled = await handleDtekAddressInput(bot, msg);
+    if (dtekHandled) return;
+    
     // Handle channel conversation (handles text only)
     const channelHandled = await handleConversation(bot, msg);
     if (channelHandled) return;
@@ -234,6 +240,12 @@ bot.on('callback_query', async (query) => {
   const data = query.data;
   
   try {
+    // DTEK callbacks - handled first
+    if (data.startsWith('dtek_')) {
+      await handleDtekCallback(bot, query);
+      return;
+    }
+    
     // Region request callbacks - MUST be before region_ check to avoid conflict!
     if (data.startsWith('region_request_')) {
       await handleRegionRequestCallback(bot, query);

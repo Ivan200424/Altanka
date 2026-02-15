@@ -11,6 +11,7 @@ const { initChannelGuard, checkExistingUsers } = require('./channelGuard');
 const { formatInterval } = require('./utils');
 const config = require('./config');
 const { initializeDatabase, runMigrations, cleanupOldStates, checkPoolHealth, startPoolMetricsLogging, getSetting } = require('./database/db');
+const { initDtekAlertsTable } = require('./database/dtekAlerts');
 const { restoreWizardStates } = require('./handlers/start');
 const { restoreConversationStates } = require('./handlers/channel');
 const { restoreIpSetupStates } = require('./handlers/settings');
@@ -19,6 +20,7 @@ const { monitoringManager } = require('./monitoring/monitoringManager');
 const { startHealthCheck, stopHealthCheck } = require('./healthcheck');
 const messageQueue = require('./utils/messageQueue');
 const { notifyAdminsAboutError } = require('./utils/adminNotifier');
+const { startDtekMonitoring, stopDtekMonitoring } = require('./services/dtekMonitor');
 
 // Флаг для запобігання подвійного завершення
 let isShuttingDown = false;
@@ -31,6 +33,9 @@ async function main() {
   // КРИТИЧНО: Ініціалізація та міграція бази даних перед запуском
   await initializeDatabase();
   await runMigrations();
+  
+  // Ініціалізація таблиці для DTEK alerts
+  await initDtekAlertsTable();
   
   // Read schedule interval from database for logging
   const intervalStr = await getSetting('schedule_check_interval', '60');
@@ -96,6 +101,11 @@ async function main() {
   
   // Запуск health check server
   startHealthCheck(bot, config.HEALTH_PORT);
+
+  // Запуск моніторингу ДТЕК
+  console.log('⚡ Запуск моніторингу ДТЕК...');
+  await startDtekMonitoring(bot);
+  console.log('✅ Моніторинг ДТЕК запущено');
 
   // Check existing users for migration (run once on startup)
   setTimeout(() => {
@@ -175,6 +185,10 @@ const shutdown = async (signal) => {
     const { stopAdminRouterMonitoring } = require('./adminRouterMonitor');
     stopAdminRouterMonitoring();
     console.log('✅ Моніторинг роутерів адміністраторів зупинено');
+    
+    // 7.2 Зупиняємо моніторинг ДТЕК
+    stopDtekMonitoring();
+    console.log('✅ Моніторинг ДТЕК зупинено');
     
     // 8. Зберігаємо всі стани користувачів
     await saveAllUserStates();
