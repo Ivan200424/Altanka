@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:20
 
 WORKDIR /app
 
@@ -7,6 +7,9 @@ COPY package*.json ./
 
 # Встановлюємо залежності
 RUN npm ci --only=production
+
+# Встановлюємо Playwright Chromium з системними залежностями
+RUN npx playwright install --with-deps chromium
 
 # Копіюємо весь код
 COPY . .
