@@ -1,0 +1,46 @@
+# Multi-stage Dockerfile for Python Telegram bot with Playwright
+
+# Stage 1: Base image with Playwright
+FROM mcr.microsoft.com/playwright/python:v1.40.0-jammy as base
+
+# Set working directory
+WORKDIR /app
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Stage 2: Dependencies
+FROM base as dependencies
+
+# Copy requirements file
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install Playwright browsers
+RUN playwright install chromium
+
+# Stage 3: Application
+FROM dependencies as application
+
+# Copy application code
+COPY bot/ /app/bot/
+COPY alembic/ /app/alembic/
+COPY alembic.ini /app/
+
+# Create directory for Playwright cache
+RUN mkdir -p /app/.cache
+
+# Set ownership
+RUN chmod -R 755 /app
+
+# Health check (optional)
+HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=3 \
+  CMD python -c "import sys; sys.exit(0)"
+
+# Run the bot
+CMD ["python", "-m", "bot.main"]

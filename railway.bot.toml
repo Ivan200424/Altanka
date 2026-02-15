@@ -1,0 +1,17 @@
+# Railway deployment configuration for Python Telegram bot
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.bot"
+
+[deploy]
+startCommand = "python -m bot.main"
+healthcheckPath = "/"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[env]
+# These should be set in Railway dashboard
+# BOT_TOKEN=your-telegram-bot-token
+# DATABASE_URL=postgresql+asyncpg://user:password@host:port/database
