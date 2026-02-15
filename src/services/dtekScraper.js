@@ -1,5 +1,6 @@
 const { chromium } = require('playwright');
 const { createLogger } = require('../utils/logger');
+const { getDtekApiClient } = require('./dtekApiClient');
 
 const logger = createLogger('DtekScraper');
 
@@ -61,11 +62,12 @@ class DtekScraper {
 
   /**
    * Скрапити поточні відключення для адреси
+   * Спочатку спробує прямий API запит, якщо не вдається — фолбек на браузер
    * @param {string} regionKey - Ключ регіону (kyiv_city, kyiv_oblast, dnipro, odesa)
    * @param {string} street - Назва вулиці
    * @param {string} house - Номер будинку
    * @param {string} settlement - Населений пункт (опціонально, для обласних регіонів)
-   * @returns {Promise<Object>} - { outage, screenshot }
+   * @returns {Promise<Object>} - { outage, screenshot, source }
    */
   async scrapCurrentOutage(regionKey, street, house, settlement = null) {
     const region = this.getRegion(regionKey);
@@ -73,7 +75,37 @@ class DtekScraper {
       throw new Error(`Unknown region: ${regionKey}`);
     }
 
-    logger.info(`Scraping ${region.name} - ${settlement ? settlement + ', ' : ''}${street} ${house}`);
+    logger.info(`Checking ${region.name} - ${settlement ? settlement + ', ' : ''}${street} ${house}`);
+
+    // Спробуємо спочатку прямий API запит (швидше та легше)
+    try {
+      const apiClient = getDtekApiClient();
+      const result = await apiClient.fetchOutage(regionKey, street, house, settlement);
+      logger.info('Data fetched via direct API', { regionKey, hasOutage: !!result.outage });
+      return result;
+    } catch (apiError) {
+      logger.warn('Direct API failed, falling back to browser scraping', {
+        regionKey,
+        error: apiError.message
+      });
+    }
+
+    // Фолбек: використовуємо Playwright браузер
+    return this._scrapWithBrowser(regionKey, street, house, settlement);
+  }
+
+  /**
+   * Скрапити відключення через Playwright браузер (фолбек)
+   * @param {string} regionKey - Ключ регіону
+   * @param {string} street - Назва вулиці
+   * @param {string} house - Номер будинку
+   * @param {string} settlement - Населений пункт
+   * @returns {Promise<Object>} - { outage, screenshot, source }
+   */
+  async _scrapWithBrowser(regionKey, street, house, settlement = null) {
+    const region = this.getRegion(regionKey);
+
+    logger.info(`Browser scraping ${region.name} - ${settlement ? settlement + ', ' : ''}${street} ${house}`);
 
     let browser = null;
     let context = null;
@@ -216,7 +248,8 @@ class DtekScraper {
         logger.warn('No AJAX data captured');
         return {
           outage: null,
-          screenshot: null
+          screenshot: null,
+          source: 'browser'
         };
       }
 
@@ -242,7 +275,8 @@ class DtekScraper {
 
       return {
         outage,
-        screenshot
+        screenshot,
+        source: 'browser'
       };
 
     } catch (error) {
