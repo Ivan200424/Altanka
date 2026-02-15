@@ -1,7 +1,7 @@
 {
-  "name": "voltyk-bot",
-  "version": "1.0.0",
-  "description": "Multi-tenant Telegram бот Вольтик для моніторингу відключень електроенергії в Україні",
+  "name": "altanka-api",
+  "version": "2.0.0",
+  "description": "REST API мікросервіс для моніторингу ДТЕК аварійних сповіщень",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
@@ -9,9 +9,10 @@
     "test": "node test.js"
   },
   "keywords": [
-    "telegram",
-    "bot",
+    "api",
+    "rest",
     "ukraine",
+    "dtek",
     "electricity",
     "outage",
     "monitor"
@@ -21,8 +22,8 @@
   "dependencies": {
     "axios": "^1.6.5",
     "dotenv": "^16.3.1",
-    "node-cron": "^3.0.3",
-    "node-telegram-bot-api": "^0.64.0",
+    "express": "^4.22.1",
+    "express-rate-limit": "^8.2.1",
     "pg": "^8.11.3",
     "playwright": "^1.40.0"
   },
