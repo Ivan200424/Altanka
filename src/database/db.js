@@ -592,6 +592,7 @@ async function checkPoolHealth() {
 let poolMetricsInterval = null;
 
 // Pool metrics logging interval (60 seconds)
+// Note: Kept inline since constants/timeouts.js was removed during Telegram bot cleanup
 const POOL_STATS_LOG_INTERVAL_MS = 60000;
 
 function startPoolMetricsLogging() {
