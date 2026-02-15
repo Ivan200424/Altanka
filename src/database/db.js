@@ -591,9 +591,10 @@ async function checkPoolHealth() {
  */
 let poolMetricsInterval = null;
 
+// Pool metrics logging interval (60 seconds)
+const POOL_STATS_LOG_INTERVAL_MS = 60000;
+
 function startPoolMetricsLogging() {
-  const POOL_STATS_LOG_INTERVAL_MS = 60000; // 60 seconds
-  
   if (poolMetricsInterval) {
     return; // Already running
   }

@@ -16,6 +16,9 @@ const CHECK_INTERVAL_MS = 5 * 60 * 1000;
 // Пауза між скрапінгом різних адрес - 5 секунд
 const DELAY_BETWEEN_SCRAPES_MS = 5 * 1000;
 
+// Placeholder message ID для API підписок (не використовується Telegram)
+const API_PLACEHOLDER_MESSAGE_ID = 1;
+
 let monitoringInterval = null;
 let isRunning = false;
 
@@ -237,10 +240,10 @@ async function sendNewOutage(apiSub, subscription, outage, region) {
       alertData
     );
 
-    // Зберігаємо стан (використовуємо 1 як message_id для позначення активного алерту)
+    // Зберігаємо стан (використовуємо placeholder message_id для API)
     await saveDtekAlertState(
       telegram_id,
-      1, // Placeholder message_id
+      API_PLACEHOLDER_MESSAGE_ID,
       JSON.stringify(alertData),
       startDate,
       endDate,
@@ -294,7 +297,7 @@ async function sendOutageUpdate(apiSub, subscription, outage, region) {
     // Оновлюємо стан
     await saveDtekAlertState(
       telegram_id,
-      1, // Placeholder message_id
+      API_PLACEHOLDER_MESSAGE_ID,
       JSON.stringify(alertData),
       startDate,
       endDate,

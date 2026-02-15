@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { createLogger } = require('../utils/logger');
+const { version } = require('../../package.json');
 
 const logger = createLogger('WebhookNotifier');
 
@@ -27,7 +28,7 @@ async function sendWebhook(webhookUrl, payload, retryCount = 0) {
       timeout: TIMEOUT_MS,
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'Altanka-API/2.0'
+        'User-Agent': `Altanka-API/${version}`
       }
     });
 
