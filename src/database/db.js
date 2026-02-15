@@ -56,9 +56,16 @@ async function initializeDatabase() {
   const client = await pool.connect();
   
   try {
+    // pg_stat_statements requires superuser privileges,
+    // which may not be available on managed PostgreSQL (e.g. Railway).
+    // Try to create it, but don't fail if it's not available.
+    try {
+      await client.query(`CREATE EXTENSION IF NOT EXISTS pg_stat_statements`);
+    } catch (extError) {
+      console.warn('⚠️ pg_stat_statements extension not available (requires superuser):', extError.message);
+    }
+
     await client.query(`
-      CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
-      
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         telegram_id TEXT UNIQUE NOT NULL,
