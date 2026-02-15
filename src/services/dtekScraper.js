@@ -8,22 +8,26 @@ const DTEK_REGIONS = {
   kyiv_city: {
     name: '🏙️ Київ (місто)',
     domain: 'www.dtek-kem.com.ua',
-    url: 'https://www.dtek-kem.com.ua/ua/shutdowns'
+    url: 'https://www.dtek-kem.com.ua/ua/shutdowns',
+    hasSettlement: false
   },
   kyiv_oblast: {
     name: '🌾 Київщина (обл)',
     domain: 'www.dtek-krem.com.ua',
-    url: 'https://www.dtek-krem.com.ua/ua/shutdowns'
+    url: 'https://www.dtek-krem.com.ua/ua/shutdowns',
+    hasSettlement: true
   },
   dnipro: {
     name: '🏭 Дніпропетровщина',
     domain: 'www.dtek-dnem.com.ua',
-    url: 'https://www.dtek-dnem.com.ua/ua/shutdowns'
+    url: 'https://www.dtek-dnem.com.ua/ua/shutdowns',
+    hasSettlement: true
   },
   odesa: {
     name: '🌊 Одещина',
     domain: 'www.dtek-oem.com.ua',
-    url: 'https://www.dtek-oem.com.ua/ua/shutdowns'
+    url: 'https://www.dtek-oem.com.ua/ua/shutdowns',
+    hasSettlement: true
   }
 };
 
@@ -60,15 +64,16 @@ class DtekScraper {
    * @param {string} regionKey - Ключ регіону (kyiv_city, kyiv_oblast, dnipro, odesa)
    * @param {string} street - Назва вулиці
    * @param {string} house - Номер будинку
+   * @param {string} settlement - Населений пункт (опціонально, для обласних регіонів)
    * @returns {Promise<Object>} - { outage, screenshot }
    */
-  async scrapCurrentOutage(regionKey, street, house) {
+  async scrapCurrentOutage(regionKey, street, house, settlement = null) {
     const region = this.getRegion(regionKey);
     if (!region) {
       throw new Error(`Unknown region: ${regionKey}`);
     }
 
-    logger.info(`Scraping ${region.name} - ${street} ${house}`);
+    logger.info(`Scraping ${region.name} - ${settlement ? settlement + ', ' : ''}${street} ${house}`);
 
     let browser = null;
     let context = null;
@@ -125,6 +130,47 @@ class DtekScraper {
       } catch (err) {
         // Модальне вікно не знайдено або вже закрите
         logger.debug('No modal window to close');
+      }
+
+      // Для обласних регіонів спочатку вводимо населений пункт
+      if (region.hasSettlement && settlement) {
+        logger.debug('Filling settlement field', { settlement });
+        
+        // Пробуємо різні можливі селектори для поля населеного пункту
+        const settlementSelectors = ['input#city', 'input#settlement', 'input#locality'];
+        let settlementFilled = false;
+        
+        for (const selector of settlementSelectors) {
+          try {
+            const settlementInput = await page.locator(selector).first();
+            if (await settlementInput.isVisible({ timeout: 1000 })) {
+              await settlementInput.fill(settlement);
+              await page.waitForTimeout(1000);
+              
+              // Вибрати населений пункт зі списку
+              try {
+                const inputId = await settlementInput.getAttribute('id');
+                const settlementList = await page.locator(`div#${inputId}autocomplete-list`).first();
+                await settlementList.waitFor({ state: 'visible', timeout: 3000 });
+                const firstOption = await settlementList.locator('div').first();
+                await firstOption.click();
+                await page.waitForTimeout(500);
+                logger.debug('Selected settlement from autocomplete');
+                settlementFilled = true;
+                break;
+              } catch (err) {
+                logger.warn('Failed to select settlement from autocomplete', { error: err.message });
+              }
+            }
+          } catch (err) {
+            // Спробувати наступний селектор
+            continue;
+          }
+        }
+        
+        if (!settlementFilled) {
+          throw new Error('Не вдалося знайти або заповнити поле населеного пункту');
+        }
       }
 
       // Ввести вулицю

@@ -170,14 +170,24 @@ async function handleDtekCallback(bot, query) {
       // Відповідаємо на callback
       await bot.answerCallbackQuery(query.id).catch(() => {});
 
-      // Запитуємо адресу
-      const message = 
-        `<b>📍 ${region.name}</b>\n\n` +
-        `Введіть адресу у форматі:\n` +
-        `<code>вулиця номер_будинку</code>\n\n` +
-        `Наприклад:\n` +
-        `<code>Хрещатик 10</code>\n` +
-        `<code>вул. Січових Стрільців 5А</code>`;
+      // Запитуємо адресу з відповідним форматом
+      let message = `<b>📍 ${region.name}</b>\n\n`;
+      
+      if (region.hasSettlement) {
+        // Для обласних регіонів: 3 поля
+        message += `Введіть адресу у форматі:\n`;
+        message += `<code>населений_пункт, вулиця, номер_будинку</code>\n\n`;
+        message += `Наприклад:\n`;
+        message += `<code>Нижча Дубечня, Деснянська, 1</code>\n`;
+        message += `<code>Бориспіль, Київський Шлях, 5А</code>`;
+      } else {
+        // Для міських регіонів: 2 поля
+        message += `Введіть адресу у форматі:\n`;
+        message += `<code>вулиця номер_будинку</code>\n\n`;
+        message += `Наприклад:\n`;
+        message += `<code>Хрещатик 10</code>\n`;
+        message += `<code>вул. Січових Стрільців 5А</code>`;
+      }
 
       await safeEditMessageText(bot, message, {
         chat_id: chatId,
@@ -307,34 +317,59 @@ async function handleDtekAddressInput(bot, msg) {
     const { regionKey } = wizardState;
     const region = DTEK_REGIONS[regionKey];
 
-    // Парсимо адресу: "вулиця номер"
-    // Підтримувані формати номерів: 10, 10А, 10-А, 5/7, 10а/2
-    const addressMatch = text.match(/^(.+)\s+([\d]+[\w\-\/]*)$/i);
+    let settlement = null;
+    let street = null;
+    let house = null;
 
-    if (!addressMatch) {
-      await safeSendMessage(bot, chatId, 
-        '❌ Невірний формат адреси.\n\n' +
-        'Введіть адресу у форматі:\n' +
-        '<code>вулиця номер_будинку</code>\n\n' +
-        'Наприклад: <code>Хрещатик 10</code>',
-        { parse_mode: 'HTML' }
-      );
-      return true;
+    // Парсимо адресу залежно від типу регіону
+    if (region.hasSettlement) {
+      // Для обласних регіонів: "населений_пункт, вулиця, номер_будинку"
+      // Підтримувані формати номерів: 10, 10А, 10-А, 5/7, 10а/2
+      const addressMatch = text.match(/^([^,]+),\s*([^,]+),\s*([а-яіїєґА-ЯІЇЄҐA-Za-z\d\-\/]+)$/i);
+
+      if (!addressMatch) {
+        await safeSendMessage(bot, chatId, 
+          '❌ Невірний формат адреси.\n\n' +
+          'Введіть адресу у форматі:\n' +
+          '<code>населений_пункт, вулиця, номер_будинку</code>\n\n' +
+          'Наприклад: <code>Нижча Дубечня, Деснянська, 1</code>',
+          { parse_mode: 'HTML' }
+        );
+        return true;
+      }
+
+      settlement = addressMatch[1].trim();
+      street = addressMatch[2].trim();
+      house = addressMatch[3].trim();
+    } else {
+      // Для міських регіонів: "вулиця номер"
+      const addressMatch = text.match(/^(.+)\s+([а-яіїєґА-ЯІЇЄҐA-Za-z\d\-\/]+)$/i);
+
+      if (!addressMatch) {
+        await safeSendMessage(bot, chatId, 
+          '❌ Невірний формат адреси.\n\n' +
+          'Введіть адресу у форматі:\n' +
+          '<code>вулиця номер_будинку</code>\n\n' +
+          'Наприклад: <code>Хрещатик 10</code>',
+          { parse_mode: 'HTML' }
+        );
+        return true;
+      }
+
+      street = addressMatch[1].trim();
+      house = addressMatch[2].trim();
     }
-
-    const street = addressMatch[1].trim();
-    const house = addressMatch[2].trim();
 
     // Видаляємо префікс "вул." якщо є
     const cleanStreet = street.replace(/^(вул\.|вулиця)\s*/i, '').trim();
 
-    logger.info('Address parsed', { userId, street: cleanStreet, house, regionKey });
+    logger.info('Address parsed', { userId, settlement, street: cleanStreet, house, regionKey });
 
     // Показуємо повідомлення про обробку
     const processingMsg = await safeSendMessage(bot, chatId,
       '⏳ <b>Перевіряю адресу...</b>\n\n' +
       `📍 ${region.name}\n` +
-      `🏠 ${cleanStreet} ${house}\n\n` +
+      `🏠 ${settlement ? settlement + ', ' : ''}${cleanStreet} ${house}\n\n` +
       'Це може зайняти до 30 секунд.',
       { parse_mode: 'HTML' }
     );
@@ -344,10 +379,10 @@ async function handleDtekAddressInput(bot, msg) {
       const { getDtekScraper } = require('../services/dtekScraper');
       const scraper = getDtekScraper();
       
-      await scraper.scrapCurrentOutage(regionKey, cleanStreet, house);
+      await scraper.scrapCurrentOutage(regionKey, cleanStreet, house, settlement);
 
       // Зберігаємо підписку
-      await upsertDtekSubscription(userId, regionKey, cleanStreet, house);
+      await upsertDtekSubscription(userId, regionKey, cleanStreet, house, settlement);
 
       // Очищаємо wizard стан
       clearDtekWizardState(userId);
@@ -356,7 +391,7 @@ async function handleDtekAddressInput(bot, msg) {
       await bot.editMessageText(
         '✅ <b>Сповіщення налаштовано!</b>\n\n' +
         `📍 Регіон: ${region.name}\n` +
-        `🏠 Адреса: ${cleanStreet} ${house}\n\n` +
+        `🏠 Адреса: ${settlement ? settlement + ', ' : ''}${cleanStreet} ${house}\n\n` +
         'Ви отримуватимете сповіщення про екстрені відключення електроенергії на цій адресі.\n\n' +
         '🔄 Перевірка кожні 5 хвилин.',
         {
@@ -371,7 +406,7 @@ async function handleDtekAddressInput(bot, msg) {
         }
       );
 
-      logger.success('DTEK subscription created', { userId, regionKey, street: cleanStreet, house });
+      logger.success('DTEK subscription created', { userId, regionKey, settlement, street: cleanStreet, house });
 
     } catch (error) {
       logger.error('Error setting up DTEK subscription', {
