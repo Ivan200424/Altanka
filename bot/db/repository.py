@@ -138,11 +138,13 @@ class ShutdownStateRepository:
         session: AsyncSession,
         state: ShutdownState,
         shutdown_type: Optional[str],
-        start_time: Optional[str],
-        end_time: Optional[str],
+        start_time: Optional["datetime"],
+        end_time: Optional["datetime"],
         is_active: bool
     ) -> None:
         """Update shutdown state."""
+        from datetime import datetime
+        
         state.shutdown_type = shutdown_type
         state.start_time = start_time
         state.end_time = end_time
