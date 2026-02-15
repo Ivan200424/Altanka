@@ -305,7 +305,8 @@ async function updateOutageWithChanges(telegramId, messageId, screenshot, messag
   try {
     // Закреслюємо старе повідомлення
     const oldText = subscription.prev_text || '';
-    const strikethroughText = `<del>${oldText.replace(/<[^>]*>/g, '')}</del>\n\n⚠️ <b>Час змінено!</b>`;
+    const cleanText = stripHtml(oldText);
+    const strikethroughText = `<del>${cleanText}</del>\n\n⚠️ <b>Час змінено!</b>`;
     
     await botInstance.editMessageCaption(strikethroughText, {
       chat_id: telegramId,
@@ -334,12 +335,27 @@ async function updateOutageWithChanges(telegramId, messageId, screenshot, messag
 }
 
 /**
+ * Видалити HTML теги з тексту
+ * @param {string} html - Текст з HTML тегами
+ * @returns {string} - Текст без HTML тегів
+ */
+function stripHtml(html) {
+  if (!html) return '';
+  // Замінюємо HTML теги пробілами, потім очищаємо зайві пробіли
+  return html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
  * Повідомити про завершення відключення
  */
 async function notifyOutageEnded(telegramId, messageId, subscription) {
   try {
     const oldText = subscription.prev_text || '';
-    const endedText = `<del>${oldText.replace(/<[^>]*>/g, '')}</del>\n\n✅ <b>Відключення завершено</b>`;
+    const cleanText = stripHtml(oldText);
+    const endedText = `<del>${cleanText}</del>\n\n✅ <b>Відключення завершено</b>`;
     
     await botInstance.editMessageCaption(endedText, {
       chat_id: telegramId,

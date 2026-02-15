@@ -308,7 +308,8 @@ async function handleDtekAddressInput(bot, msg) {
     const region = DTEK_REGIONS[regionKey];
 
     // Парсимо адресу: "вулиця номер"
-    const addressMatch = text.match(/^(.+)\s+(\d+\S*)$/);
+    // Підтримувані формати номерів: 10, 10А, 10-А, 5/7, 10а/2
+    const addressMatch = text.match(/^(.+)\s+([\d]+[\w\-\/]*)$/i);
 
     if (!addressMatch) {
       await safeSendMessage(bot, chatId, 
