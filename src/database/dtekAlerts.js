@@ -15,6 +15,7 @@ async function initDtekAlertsTable() {
         id SERIAL PRIMARY KEY,
         telegram_id TEXT NOT NULL UNIQUE,
         dtek_region TEXT NOT NULL,
+        settlement TEXT,
         street TEXT NOT NULL,
         house TEXT NOT NULL,
         last_message_id INTEGER,
@@ -47,22 +48,24 @@ async function initDtekAlertsTable() {
  * @param {string} dtekRegion - Регіон ДТЕК
  * @param {string} street - Вулиця
  * @param {string} house - Будинок
+ * @param {string} settlement - Населений пункт (опціонально, для обласних регіонів)
  * @returns {Promise<boolean>}
  */
-async function upsertDtekSubscription(telegramId, dtekRegion, street, house) {
+async function upsertDtekSubscription(telegramId, dtekRegion, street, house, settlement = null) {
   try {
     await pool.query(`
-      INSERT INTO dtek_alerts (telegram_id, dtek_region, street, house, is_active, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, TRUE, NOW(), NOW())
+      INSERT INTO dtek_alerts (telegram_id, dtek_region, settlement, street, house, is_active, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, TRUE, NOW(), NOW())
       ON CONFLICT(telegram_id) DO UPDATE SET
         dtek_region = EXCLUDED.dtek_region,
+        settlement = EXCLUDED.settlement,
         street = EXCLUDED.street,
         house = EXCLUDED.house,
         is_active = TRUE,
         updated_at = NOW()
-    `, [telegramId, dtekRegion, street, house]);
+    `, [telegramId, dtekRegion, settlement, street, house]);
 
-    logger.info('DTEK subscription upserted', { telegramId, dtekRegion, street, house });
+    logger.info('DTEK subscription upserted', { telegramId, dtekRegion, settlement, street, house });
     return true;
   } catch (error) {
     logger.error('Error upserting DTEK subscription', { 

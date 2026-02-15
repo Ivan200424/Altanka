@@ -84,11 +84,11 @@ async function checkAllSubscriptions() {
 
     logger.info(`Found ${subscriptions.length} active subscriptions`);
 
-    // Групування підписників по адресі (region|street|house)
+    // Групування підписників по адресі (region|settlement|street|house)
     const addressGroups = new Map();
     
     for (const sub of subscriptions) {
-      const addressKey = `${sub.dtek_region}|${sub.street}|${sub.house}`;
+      const addressKey = `${sub.dtek_region}|${sub.settlement || ''}|${sub.street}|${sub.house}`;
       
       if (!addressGroups.has(addressKey)) {
         addressGroups.set(addressKey, []);
@@ -102,11 +102,12 @@ async function checkAllSubscriptions() {
     // Обробляємо кожну унікальну адресу
     let index = 0;
     for (const [addressKey, subs] of addressGroups.entries()) {
-      const [regionKey, street, house] = addressKey.split('|');
+      const [regionKey, settlement, street, house] = addressKey.split('|');
       
       try {
         logger.info(`Checking address ${index + 1}/${addressGroups.size}`, {
           region: regionKey,
+          settlement: settlement || undefined,
           street,
           house,
           subscribers: subs.length
@@ -114,7 +115,12 @@ async function checkAllSubscriptions() {
 
         // Скрапимо дані один раз для цієї адреси
         const scraper = getDtekScraper();
-        const { outage, screenshot } = await scraper.scrapCurrentOutage(regionKey, street, house);
+        const { outage, screenshot } = await scraper.scrapCurrentOutage(
+          regionKey, 
+          street, 
+          house,
+          settlement || null
+        );
 
         // Розсилаємо результат всім підписникам з цією адресою
         for (const sub of subs) {
@@ -388,7 +394,7 @@ async function notifySubscriberError(subscription, error) {
     const errorText = 
       '⚠️ <b>Помилка при перевірці відключення</b>\n\n' +
       `Не вдалося отримати дані для адреси:\n` +
-      `${subscription.street} ${subscription.house}\n\n` +
+      `${subscription.settlement ? subscription.settlement + ', ' : ''}${subscription.street} ${subscription.house}\n\n` +
       `Спробуємо ще раз через кілька хвилин.`;
 
     await botInstance.sendMessage(subscription.telegram_id, errorText, {
@@ -407,11 +413,11 @@ async function notifySubscriberError(subscription, error) {
  * Форматувати повідомлення про відключення
  */
 function formatOutageMessage(regionName, subscription, outage) {
-  const { street, house } = subscription;
+  const { settlement, street, house } = subscription;
   const { startDate, endDate, subType, updateTimestamp } = outage;
 
   let message = `<b>⚡ Екстрене відключення — ${regionName}</b>\n\n`;
-  message += `<blockquote>📍 ${street} ${house}</blockquote>\n\n`;
+  message += `<blockquote>📍 ${settlement ? settlement + ', ' : ''}${street} ${house}</blockquote>\n\n`;
   
   if (subType) {
     message += `⚠️ Тип: ${subType}\n`;
