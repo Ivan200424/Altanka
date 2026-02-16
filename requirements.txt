@@ -1,0 +1,14 @@
+# Core dependencies
+python-telegram-bot[job-queue]==20.8
+playwright==1.40.0
+asyncpg==0.29.0
+SQLAlchemy==2.0.25
+alembic==1.13.1
+APScheduler==3.10.4
+structlog==24.1.0
+pydantic-settings==2.1.0
+python-dotenv==1.0.0
+
+# Additional dependencies
+aiohttp==3.13.3  # Updated to fix security vulnerabilities (CVE-2024-52304, CVE-2024-23334, CVE-2024-23829)
+tenacity==8.2.3

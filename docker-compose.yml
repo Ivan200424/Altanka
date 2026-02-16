@@ -1,38 +1,70 @@
 version: '3.8'
 
 services:
+  # PostgreSQL database for both services
   postgres:
-    image: postgres:16-alpine
+    image: postgres:15-alpine
     environment:
-      - POSTGRES_USER=${POSTGRES_USER:-voltyk}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-voltyk_password}
-      - POSTGRES_DB=${POSTGRES_DB:-voltyk_bot}
+      - POSTGRES_USER=${POSTGRES_USER:-altanka}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-altanka_password}
+      - POSTGRES_DB=${POSTGRES_DB:-altanka_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-voltyk}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-altanka}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - altanka-network
 
-  bot:
-    build: .
+  # Node.js API service (existing)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
     environment:
-      - BOT_TOKEN=${BOT_TOKEN}
-      - ADMIN_IDS=${ADMIN_IDS}
-      - CHECK_INTERVAL_MINUTES=${CHECK_INTERVAL_MINUTES:-3}
+      - API_KEY=${API_KEY}
+      - PORT=${API_PORT:-3000}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-altanka}:${POSTGRES_PASSWORD:-altanka_password}@postgres:5432/${POSTGRES_DB:-altanka_db}
       - TZ=${TZ:-Europe/Kyiv}
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-voltyk}:${POSTGRES_PASSWORD:-voltyk_password}@postgres:5432/${POSTGRES_DB:-voltyk_bot}
-      - WEBHOOK_URL=${WEBHOOK_URL:-}
-      - USE_WEBHOOK=${USE_WEBHOOK:-false}
-      - PORT=${PORT:-3000}
     ports:
-      - "${PORT:-3000}:3000"
+      - "${API_PORT:-3000}:3000"
     depends_on:
       postgres:
         condition: service_healthy
     restart: unless-stopped
+    networks:
+      - altanka-network
+
+  # Python Telegram bot service (new)
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-altanka}:${POSTGRES_PASSWORD:-altanka_password}@postgres:5432/${POSTGRES_DB:-altanka_db}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - CHECK_INTERVAL_MINUTES=${CHECK_INTERVAL_MINUTES:-5}
+      - TZ=${TZ:-Europe/Kyiv}
+      - PLAYWRIGHT_TIMEOUT=30000
+      - MAX_RETRIES=3
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - altanka-network
+    # Share Playwright cache
+    volumes:
+      - playwright_cache:/root/.cache/ms-playwright
+
+networks:
+  altanka-network:
+    driver: bridge
 
 volumes:
   postgres_data:
+  playwright_cache:
